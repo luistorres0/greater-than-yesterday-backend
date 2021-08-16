@@ -4,7 +4,7 @@ current environment where the application code is running and stores
 the value in the env variable. If process.env.NODE_ENV is not defined, 
 then set the value to "development".
 */
-const env = process.env.NODE_ENV || "production";
+const env = process.env.NODE_ENV || "development";
 
 /* 
 const config = require("../../knexfile")[env]; requires the database 
