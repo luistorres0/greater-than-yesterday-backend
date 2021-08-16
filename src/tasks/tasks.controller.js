@@ -4,6 +4,8 @@ const hasProperties = require("../errors/hasProperties");
 
 const hasRequiredProperties = hasProperties("title", "user_id");
 
+const asyncErrorBoundary = require("../errors/asyncErrorBoundary");
+
 const VALID_PROPERTIES = ["title", "user_id"];
 
 function hasOnlyValidProperties(req, res, next) {
@@ -22,48 +24,38 @@ function hasOnlyValidProperties(req, res, next) {
   next();
 }
 
-function taskExists(req, res, next) {
-  service
-    .read(req.params.task_id)
-    .then((task) => {
-      if (task) {
-        res.locals.task = task;
-        return next();
-      }
-      next({ status: 404, message: `task cannot be found.` });
-    })
-    .catch(next);
+async function taskExists(req, res, next) {
+  const task = await service.read(req.params.task_id);
+  if (task) {
+    res.locals.task = task;
+    return next();
+  }
+  next({ status: 404, message: `Task cannot be found.` })
 }
 
-function read(req, res, next) {
-    service
-    .read(req.params.task_id)
-    .then((data) => res.status(201).json({ data }))
-    .catch(next);
+async function read(req, res, next) {
+  res.status(201).json({ data: res.locals.task });
 }
 
-function create(req, res, next) {
-  service
-    .create(req.body.data)
-    .then((data) => res.status(201).json({ data }))
-    .catch(next);
+async function create(req, res) {
+  const data = await service.create(req.body.data);
+  res.status(201).json({ data });
 }
 
-function destroy(req, res, next) {
-  service
-    .delete(res.locals.task.task_id)
-    .then(() => res.sendStatus(204))
-    .catch(next);
+async function destroy(req, res) {
+  const { task } = res.locals;
+  await service.delete(task.task_id);
+  res.sendStatus(204);
 }
 
-function list(req, res, next) {
-    service.list()
-    .then((data) => res.status(201).json({ data }));
+async function list(req, res, next) {
+    const data = await service.list();
+    res.json({data});
 }
 
 module.exports = {
-  create: [hasOnlyValidProperties, hasRequiredProperties, create],
-  delete: [taskExists, destroy],
-  read: [taskExists, read],
-  list
+  create: [hasOnlyValidProperties, hasRequiredProperties, asyncErrorBoundary(create)],
+  delete: [asyncErrorBoundary(taskExists), asyncErrorBoundary(destroy)],
+  read: [asyncErrorBoundary(taskExists), asyncErrorBoundary(read)],
+  list: asyncErrorBoundary(list)
 };
